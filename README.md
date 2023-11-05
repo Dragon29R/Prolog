@@ -432,7 +432,153 @@ evaluate_proximity(EmptyPositions, OwnPieces, BestMove):-
 manhattan_distance([Row1, Column1], [Row2, Column2], Distance):-
     Distance is abs(Row1 - Row2) + abs(Column1 - Column2).
 ```
-# DIOGO AQUI
+No segundo ciclo utilizamos a função hard_moves_second_part(+Board, +Player, -ListOfMoves) que utiliza varios algoritmos diferentes para conseguir consistentemente dar sort a lista de jogadas possiveis de maneira a chegar mais proximo da vitoria, parte do principio que está a uma jogada de um dos objetivos que get_Move_score((+R)-(+C),(+R1)-(+C1),+Distance,+Board,-Score,+Player) e tem em consideração varias coisas diferentes (Obj) por exemplo se encontrou uma jogada que é vitoriosa ou se conseguir aproximar uma peça isolada a peças aliadas com dois niveis de maneira a facilitar o bot a encontrar o tres em linha de peças com dois niveis e tem também em consideração a distancia hexagonal entre as peças uma vez que nenhum dos objetivos defenidos em get_Move_score((+R)-(+C),(+R1)-(+C1),+Distance,+Board,-Score,+Player) não se prova util para avaliar o tabuleiro uma vez que juntar peças aliadas facilita o algoritmo a encontrar uma jogada que se encontra num dos objetivos.
+
+- Obj0 - Dá prioridade (-999) maxima a uma jogada que ganhe o jogo
+- Obj1 - Penaliza (+4) jogadas que removem uma peça de dois niveis
+- Obj2 - Dá um bonus pequeno (-1) de prioridade a mecher uma peça para cima de outra aliada
+- Obj3 - Dá um bonus maior (-2) de prioridade a mecher uma peça para cima de outra inimiga
+- Obj4 - Dá um bonus em quase todos os casos proporcional á diferença de aproximação peças com dois niveis (- Num*2) a função hard_moves_second_part(+Board, +Player, -ListOfMoves) é responsavel por atribuir os valores ao num
+- Obj5 - Quando nenhum dos objetivos definidos conseguem definir uma jogada melhor a distancia entre peças aliadas é utilizada para aproximar uma peça isolada de peças aliadas
+
+``` prolog
+% hard_moves_second_part(+Board, +Player, -ListOfMoves)
+% gets all the valid moves for the player in the second cycle of the game with score attached to them
+hard_moves_second_part(Board, Player,ListOfMoves):-
+    white(Player),
+    length(Board, Size),
+    Side_Size is ((Size+1)//2),  
+    findall([Score,[R-C,R1-C1]], (
+        between(1,Size,C),
+        between(1, Size, R),
+        inBoard_int(R-C,Board),
+        between(1,Size,C1),
+        between(1,Size,R1),
+        inBoard_int(R1-C1,Board),
+        find_Values(whiteblack, whitewhite, Board, Indices),
+        find_Values(white, white, Board, Indices2),
+        append(Indices,Indices2,Indices3),
+        member(R-C,Indices3),
+        check_if_piece_is_from_player(R-C,Player,Board,Range),
+        get_distance_in_line(R-C,R1-C1,Side_Size,Range1),
+        Range1 =:= Range,
+        check_if_destination_is_clear_or_has_one_level(R1-C1,Board),
+        calculate_distances_Score(R-C,R1-C1, Indices3, Scores,Player,Board),
+        sort(Scores,Scores2),
+        nth1(1,Scores2,[Score,[_-_]])
+
+
+    ), ListOfMoves).
+```
+
+``` prolog
+% calculate_distances_Score((+R)-(+C),(+R1)-(+C1), +OwnPieces, -Scores,+Player,+Board)
+% calculates multiple scores of a move for the bot in the second cycle of the game
+% it was needed to calculate multiple  scores of the same move because it has to be aware of the distance between the friendly pieces
+calculate_distances_Score(R-C,R1-C1, OwnPieces, Scores,Player,Board):-
+findall([Score,[OwnRow-OwnColumn]], (
+    member(OwnRow-OwnColumn, OwnPieces),
+    hexagonal_distance(OwnRow-OwnColumn, R1-C1, Distance), %---------------------------------Obj5
+    get_Move_score(R-C,R1-C1,Distance,Board,Score,Player)
+
+), Scores).
+
+```
+
+``` prolog
+% get_Move_score((+R)-(+C),(+R1)-(+C1),+Distance,+Board,-Score,+Player)
+% calculates the score of a move for the bot in the second cycle of the game
+% this part gives a score of -999 giving priority to winning the game
+get_Move_score(R-C,R1-C1,_,Board,Score,Player):-
+    move_aux(R-C,R1-C1,Board,NewBoard, Player),
+    check_game_over([NewBoard,Player],_),
+    Score is -999,!. %---------------------------------Obj0
+
+% this part gives a score Distance+4 - Num*2 because it gives priority to the number of pieces that are closer to the destination and penelizes destacking pieces
+get_Move_score(R-C,R1-C1,Distance,Board,Score,Player):-
+    check_delta_of_how_many_stacked_pieces_nearby(R-C,R1-C1,Board,Player,Num),
+    \+check_if_destination_is_clear_or_has_one_level(R-C,Board),
+    Score is Distance+4 - Num*2,!. %---------------------------------Obj1
+
+
+% this part gives a score Distance-1 - Num*2 because it gives priority to the number of pieces that are closer to the destination and gives a little priority  to stack on top of same color pieces
+get_Move_score(R-C,R1-C1,Distance,Board,Score,Player):-
+    check_delta_of_how_many_stacked_pieces_nearby(R-C,R1-C1,Board,Player,Num),
+    check_if_piece_is_from_player(R1-C1,Player,Board,_),
+    Score is Distance -1 - Num*2,!. %---------------------------------Obj2
+
+
+% this part gives a score Distance -2 - Num*2 because it gives priority to the number of pieces that are closer to the destination and gives priority to stack a piece on top of an enemy piece
+get_Move_score(R-C,R1-C1,Distance,Board,Score,Player):-
+    check_delta_of_how_many_stacked_pieces_nearby(R-C,R1-C1,Board,Player,Num),
+    change_player([_,Player],[_,NextPlayer]),
+    check_if_piece_is_from_player(R1-C1,NextPlayer,Board,_),
+    Score is Distance - 2 - Num*2,!. %---------------------------------Obj3
+
+
+% this part gives a score Distance - Num*2 because it gives priority to the number of pieces that are closer to the destination
+get_Move_score(R-C,R1-C1,Distance,Board,Score,Player):-
+    check_delta_of_how_many_stacked_pieces_nearby(R-C,R1-C1,Board,Player,Num),
+    Score is Distance - Num*2,!. %---------------------------------Obj5      
+```
+
+``` prolog
+%--------------------------------------------------------Obj4
+
+% hard_moves_second_part(+Board, +Player, -ListOfMoves)
+% gets all the valid moves for the player in the second cycle of the game with score attached to them
+hard_moves_second_part(Board, Player,ListOfMoves):-
+    white(Player),
+    length(Board, Size),
+    Side_Size is ((Size+1)//2),  
+    findall([Score,[R-C,R1-C1]], (
+        between(1,Size,C),
+        between(1, Size, R),
+        inBoard_int(R-C,Board),
+        between(1,Size,C1),
+        between(1,Size,R1),
+        inBoard_int(R1-C1,Board),
+        find_Values(whiteblack, whitewhite, Board, Indices),
+        find_Values(white, white, Board, Indices2),
+        append(Indices,Indices2,Indices3),
+        member(R-C,Indices3),
+        check_if_piece_is_from_player(R-C,Player,Board,Range),
+        get_distance_in_line(R-C,R1-C1,Side_Size,Range1),
+        Range1 =:= Range,
+        check_if_destination_is_clear_or_has_one_level(R1-C1,Board),
+        calculate_distances_Score(R-C,R1-C1, Indices3, Scores,Player,Board),
+        sort(Scores,Scores2),
+        nth1(1,Scores2,[Score,[_-_]])
+
+
+    ), ListOfMoves).  
+
+hard_moves_second_part(Board, Player,ListOfMoves):-
+    black(Player),
+    length(Board, Size),
+    Side_Size is ((Size+1)//2),  
+    findall([Score,[R-C,R1-C1]], (
+        between(1,Size,C),
+        between(1, Size, R),
+        inBoard_int(R-C,Board),
+        between(1,Size,C1),
+        between(1,Size,R1),
+        inBoard_int(R1-C1,Board),
+        find_Values(blackblack, blackwhite, Board, Indices),
+        find_Values(black, black, Board, Indices2),
+        append(Indices,Indices2,Indices3),
+        member(R-C,Indices3),
+        check_if_piece_is_from_player(R-C,Player,Board,Range),
+        get_distance_in_line(R-C,R1-C1,Side_Size,Range1),
+        Range1 =:= Range,
+        check_if_destination_is_clear_or_has_one_level(R1-C1,Board),
+        calculate_distances_Score(R-C,R1-C1, Indices3, Scores,Player,Board),
+        sort(Scores,Scores2),
+        nth1(1,Scores2,[Score,[_-_]])
+
+
+    ), ListOfMoves).   
+```
 
 ### 3.7 Jogada Do Computador
 
@@ -512,7 +658,70 @@ choose_random_move([CenterRow, CenterColumn], [Row, Column]):-
     Column is CenterColumn + RColumn.
 ```
 
-# DIOGO AQUI 
+No segundo ciclo o move piece verifica se é uma pessoa no caso de ser trata da sanitização dos inputs e receção da jogada.
+No caso de ser um bot apenas verifica o nivel e dependendo do nivel faz jogadas random ou hard
+
+``` prolog
+% move_piece([+Board,+Player],[-NewBoard,-Player])
+% its responsible for the movement of the pieces either from bots or humans and sanitization of inputs 
+move_piece([Board,Player],[NewBoard,Player]):-
+    (Player = 1 ->
+        name_of_the_player(player1, Name)
+    ; Player = 2 ->
+        name_of_the_player(player2, Name)
+    ),
+    \+ member(Name, ['FitBot', 'FatBot', 'Bot']),
+    format('Player: ~a choose the piece you want to move', [Name]),nl,
+    getCoords([Row, Col], Player, Board, _),
+    RealRow is Row-97+1,
+    check_if_piece_is_from_player(RealRow-Col,Player,Board,Range),
+    format('Player: ~a choose a position to move the piece to:', [Name]), nl,
+    getCoords([Row2, Col2], Player, Board,_),
+    inBoard(Row2-Col2,Board),
+    RealRow2 is Row2-97+1,
+    length(Board,Size),
+    Side_Size is ((Size+1)//2),
+    get_distance_in_line(RealRow-Col,RealRow2-Col2,Side_Size,CheckRange),
+    CheckRange =:= Range,nl,
+    check_if_destination_is_clear_or_has_one_level(RealRow2-Col2,Board),
+    move_aux(RealRow-Col,RealRow2-Col2,Board,NewBoard, Player).
+
+move_piece([Board,Player],[NewBoard,Player]):-
+    (Player = 1 ->
+        name_of_the_player(player1, Name)
+    ; Player = 2 ->
+        name_of_the_player(player2, Name)
+    ),
+    member(Name, ['FitBot', 'FatBot', 'Bot']),write(Name),nl,
+    (Player = 1 ->
+        bot_difficulty(player1, Difficulty)
+    ; Player = 2 ->
+        bot_difficulty(player2, Difficulty)
+    ),
+    (
+        Difficulty = 1 -> get_random_move_second_cycle([R-C,R1-C1], [Board, Player]);
+        Difficulty = 2 -> get_Hard_Move_second_cycle([R-C,R1-C1], [Board, Player])
+    ),
+    write('Bot chose: '), write([R-C,R1-C1]), nl,
+    move_aux(R-C,R1-C1,Board,NewBoard, Player).
+```
+
+O bot facil apenas escolhe uma jogada aleatória da lista de jogadas válidas
+``` prolog 
+% get_random_move_second_cycle([(+R)-(+C),(+R1)-(+C1)], [+Board, +Player])
+% gets a random move for the bot in the second cycle of the game
+get_random_move_second_cycle([R-C,R1-C1], [Board, Player]):-
+    valid_moves_second_cycle(Board,Player, ListOfMoves),
+    random_member([R-C,R1-C1],ListOfMoves).
+```
+
+O bot hard apenas dá sort a lista de moves e vai escolher a primeira assim a que tem mais prioridade
+``` prolog 
+get_Hard_Move_second_cycle(Move,[Board,Player]):-
+    hard_moves_second_part(Board,Player,ListOfMoves),
+    sort(ListOfMoves,ListOfMoves2),
+    nth1(1,ListOfMoves2,[_,Move]).
+```
 
 ## Conclusões
 
