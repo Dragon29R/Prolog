@@ -43,6 +43,15 @@ O jogo está dividido em duas fases: "Placement Phase" e "Movement Phase". Duran
 
 Na 2º fase, começando pelo Branco, os jogadores movem seus discos em linhas retas, cobrindo uma distância igual à altura da pilha da qual fazem parte. As pilhas podem consistir num único disco ou dois discos um em cima do outro, formando uma pilha com altura 2. Apenas o disco no topo de uma pilha é ativo e pode mover-se. Um disco pode pousar num hexágono vazio ou em cima de outro disco, independentemente da sua cor. No entanto, a altura total de uma pilha não pode exceder 2 discos, e nenhum disco pode sair do tabuleiro. Além disso, o disco no topo de uma pilha com altura 2 pode realizar um "salto", permitindo que se mova para qualquer espaço vazio adjacente.
 
+As peças são representadas por caracteres diferentes:
+- ○ - vazio
+- ◉ - uma peça preta
+- ◎ - uma peça branca
+- ◓ - uma peça branca em cima de uma preta
+- ◒ - uma peça preta em cima de uma branca
+- ◼ - uma peça preta em cima de uma preta
+- ◻ - uma peça branca em cima de uma branca
+
 A condição de vitória é alcançada quando um jogador forma uma fila de três pilhas com altura 2 da sua cor no topo. Esta vitória também pode ser alcançada se forem criadas várias filas de discos ativos da mesma cor com altura 2. Mesmo que mais de três pilhas com altura 2 com a cor do jogador sejam formadas, ainda assim conta como vitória.
 Para mais informações:  
 https://s3.amazonaws.com/geekdo-files.com/bgg368377?response-content-disposition=inline%3B%20filename%3D%22DuAlma.pdf%22&response-content-type=application%2Fpdf&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAJYFNCT7FKCE4O6TA%2F20231102%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20231102T142345Z&X-Amz-SignedHeaders=host&X-Amz-Expires=120&X-Amz-Signature=e2b0e267d54830c403a6ec58014f7ea9251eb73bad341725def27c7bd792f8bc 
