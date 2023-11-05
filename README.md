@@ -658,8 +658,7 @@ choose_random_move([CenterRow, CenterColumn], [Row, Column]):-
     Column is CenterColumn + RColumn.
 ```
 
-No segundo ciclo o move piece verifica se é uma pessoa no caso de ser trata da sanitização dos inputs e receção da jogada.
-No caso de ser um bot apenas verifica o nivel e dependendo do nivel faz jogadas random ou hard
+No segundo ciclo o move piece verifica se é uma pessoa, no caso de ser, trata da sanitização dos inputs e receção da jogada, no caso de ser um bot apenas verifica o nivel e dependendo do nivel faz jogadas random ou hard
 
 ``` prolog
 % move_piece([+Board,+Player],[-NewBoard,-Player])
@@ -715,7 +714,7 @@ get_random_move_second_cycle([R-C,R1-C1], [Board, Player]):-
     random_member([R-C,R1-C1],ListOfMoves).
 ```
 
-O bot hard apenas dá sort a lista de moves e vai escolher a primeira assim a que tem mais prioridade
+O bot hard apenas dá sort a lista de moves e vai escolher a primeira a que tem mais prioridade
 ``` prolog 
 get_Hard_Move_second_cycle(Move,[Board,Player]):-
     hard_moves_second_part(Board,Player,ListOfMoves),
